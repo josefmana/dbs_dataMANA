@@ -4,7 +4,7 @@
 # as well as pre-surgery neuropsychological battery data.
 
 # list packages to be used
-pkgs <- c("here","tidyverse","purrr")
+pkgs <- c("here","tidyverse","purrr","gt")
 
 # load or install each of the packages as needed
 for ( i in pkgs ) {
@@ -94,7 +94,18 @@ d0 <-
   filter( complete.cases(data_set) )
 
 # extract patients' IDs conditional on data set type
-pats <- sapply( c("retrospective","prospective"), function(i) unique( d0[ d0$data_set == i, "id" ] ) )
+pats <-
+  
+  sapply(
+    c("retrospective","prospective"),
+    function(i) {
+      
+      p <- unique( d0[ d0$data_set == i, "id" ] ) # extract the data
+      print( paste0( i, ": N = ", length(p) ) ) # print number of patients
+      return(p) # save the IDs
+      
+    }
+  )
 
 
 # ---- psychological variables pre-processing ----
@@ -295,16 +306,20 @@ for ( i in mot$scale ) {
 
 # FREQUENCY TABLES ----
 
+# prepare a folder for tables
+if( !dir.exists("tabs") ) dir.create("tabs")
+
 # extract frequency tables for all neuropsychology as well as MDS-UPDRS III
 t <-
   
   lapply(
     
-    setNames(voi,voi),
+    setNames(voi,voi), # loop through variables of interest
     function(i)
       
       df[[i]] %>%
       
+      # add data set index
       mutate(
         data_set = sapply(
           rownames(.),
@@ -316,6 +331,7 @@ t <-
         )
       ) %>%
       
+      # make it longer
       pivot_longer(
         cols = !data_set,
         names_to = if ( i == "mds_updrs_iii") c("dbs","med","event") else "event", 
@@ -323,17 +339,110 @@ t <-
         values_to = i
       ) %>%
       
+      # keep only complete cases and create table out of it
       na.omit() %>%
       select( if ( i == "mds_updrs_iii") c("data_set","event","med","dbs") else c("data_set", "event") ) %>%
       table() %>%
       as.data.frame() %>%
       
+      # 
       pivot_wider( names_from = data_set, values_from = Freq ) %>%
       relocate( retrospective, .before = prospective ) %>%
       
+      # order it by event
       mutate( event = factor( event, levels = c( "screening", paste0("y",seq(1,21,2)) ), ordered = T ) ) %>%
       arrange( event )
     
   )
 
-# 
+# ---- neuropsychology frequency table ----
+
+# prepare a gt object
+t1 <-
+  
+  t[ c("drsii","faq","pdaq","bdi","staix1","staix2") ] %>%
+  
+  # glue all different neuropsychology measures to a single wide file
+  reduce( left_join, by = "event" ) %>%
+  relocate( starts_with("retro"), .after = event ) %>%
+  mutate( across( where(is.numeric), ~ ifelse( is.na(.x), 0, .x ) ) ) %>%
+  
+  # prepare a gt object with separate columns for prospective and retrospective data
+  gt( caption = "Neuropsychological data" ) %>%
+  tab_spanner( label = "Retrospective", columns = starts_with("retrospective") ) %>%
+  tab_spanner( label = "Prospective", columns = starts_with("prospective") ) %>%
+  
+  # re-label columns
+  cols_label( ends_with("ve.x.x.x") ~ "STAIX1", ends_with("ve.y.y.y") ~ "STAIX2" ) %>%
+  cols_label(  ends_with("ve.x.x") ~ "PDAQ", ends_with("ve.y.y") ~ "BDI-II" ) %>%
+  cols_label( ends_with("ve.x") ~ "DRS-2", ends_with("ve.y") ~ "FAQ" ) %>%
+  
+  # align the text to left for event and center for frequencies
+  cols_align( align = "left", columns = "event" ) %>%
+  cols_align( align = "center", columns = -1 )
+  
+
+# ---- motor signs frequency table ----
+
+# prepare a gt object
+t2 <-
+  
+  t$mds_updrs_iii %>%
+  
+  # re-code zero for "-" at place where no value could have been produced
+  mutate(
+    across(
+      all_of( c("retrospective","prospective") ),
+      ~ case_when(
+        event == "screening" & dbs != "none" ~ "-", # no Stim. ON or OFF measures before surgery
+        event != "screening" & dbs == "none" ~ "-", # no non-Stim measures after surgery
+        .default = as.character(.x)
+      )
+    )
+
+  ) %>%
+  
+  # spread the table
+  pivot_wider(
+    names_from = c("med","dbs"), names_sep = "_",
+    values_from = c("retrospective","prospective"),
+    id_cols = "event"
+  ) %>%
+  
+  # order the columns appropriately
+  relocate( starts_with("retrospective_off"), .after = event ) %>%
+  relocate( starts_with("prospective_off"), .after = retrospective_on_on ) %>%
+  
+  # prepare a gt object with separate columns for prospective and retrospective data
+  gt( caption = "MDS-UPDRS III data" ) %>%
+  
+  # lowermost spanner for medication condition (gather = F for retaining column order)
+  tab_spanner( label = "Medication OFF", columns = contains("_off_"), gather = F ) %>%
+  tab_spanner( label = "Medication ON", columns = contains("_on_"), gather = F ) %>%
+  
+  # uppermost spanner for data set type
+  tab_spanner( label = "Retrospective", columns = starts_with("retrospective"), gather = F ) %>%
+  tab_spanner( label = "Prospective", columns = starts_with("prospective"), gather = F ) %>%
+  
+  # label columns according to stimulation condition
+  cols_label(
+    ends_with("_none") ~ "No Stim.",
+    ends_with("_off") ~ "Stim. OFF",
+    ends_with("_on") ~ "Stim. ON"
+  )
+
+
+# ---- save all frequency tables ----
+
+# NEED TO FIND A WAY TO SAVE IT AS AN IMAGE
+gtsave( data = t1, filename = here("tabs","neuropsychology_freqtab.html") )
+gtsave( data = t2, filename = here("tabs","mds-updrs_iii_freqtab.html") )
+
+
+# CHECK THE IDENTITY OF MRI SUBJECTS ----
+
+# read the list of 113 MRI subjects
+mrs <- read.csv( here("_raw","MRIsubjects_key.csv"), sep = ";" )
+
+# extract numbers of retrospective vs prospective patients
+sapply( c("retrospective","prospective"), function(i) sum( mrs$IPN %in% pats[[i]] ) ) # 57/57
