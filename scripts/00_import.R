@@ -3,8 +3,11 @@
 # The script extracrs MDS-UPDRS-III, DRS-2, BDI-II, STAI-X1, STAI-X2, FAQ and PDAQ longitudinal data sets
 # as well as pre-surgery neuropsychological battery data.
 
+# clear environment
+rm( list = ls() )
+
 # list packages to be used
-pkgs <- c("here","tidyverse","purrr","gt")
+pkgs <- c("here","tidyverse","purrr","gt","readxl","janitor")
 
 # load or install each of the packages as needed
 for ( i in pkgs ) {
@@ -242,6 +245,7 @@ saveRDS( object = d1, file = "_data/response_data.rds" )
 # in this chunk of code we pre-process (i.e., sum items for the most part) response data
 # start by reversing item scores where applicable (psychological variables only, no reverse items in MDS UPDRS-III)
 with(
+  
   psy,
   for ( i in scale[complete.cases(rev)] ) for ( j in unlist( strsplit(rev[scale==i],",") ) ) {
     
@@ -250,6 +254,7 @@ with(
       ( max[scale==i] + min[scale==i] ) - d1[[i]][j, , ]
     
   }
+
 )
 
 # prepare an array for MDS UPDRS-III subscales
@@ -441,8 +446,58 @@ gtsave( data = t2, filename = here("tabs","mds-updrs_iii_freqtab.html") )
 
 # CHECK THE IDENTITY OF MRI SUBJECTS ----
 
-# read the list of 113 MRI subjects
-mrs <- read.csv( here("_raw","MRIsubjects_key.csv"), sep = ";" )
+# read the list of MRI subjects
+mrs <- read.csv( here("_raw","MRIsubjects_key.csv"), sep = ";" ) # CLIMABI 113 data set
+
+# extract name-to-IPN file
+nms <-
+  
+  read.csv( here("_raw","ITEMPO_DATA_2024-01-12_1054.csv"), sep = "," ) %>%
+  select( study_id, jmeno, prijmeni ) %>% # keep columns of interest only
+  mutate( across( c("jmeno","prijmeni"), ~ make_clean_names( .x, allow_dupes = T ) ) ) # re-code for later
+
+# read the list of all patients at Na Homolce's disks
+hom <-
+  
+  lapply(
+
+    list.files( here("_raw","homolka") ), # loop throug file names
+    function(i)
+      
+      read_excel( here("_raw","homolka",i), sheet = 1, col_names = F ) %>% # read the data
+      select(1,6,7) %>% # keep only selected columns of interest
+      `colnames<-`( c("name","type","note") ) %>%
+      mutate( year = gsub( "\\D", "", i ) ) # add year of MRI
+
+  ) %>%
+  
+  # pull all years together and re-code some
+  do.call( rbind.data.frame, . ) %>%
+  filter( grepl("DBS|dbs", type ) ) %>%
+  
+  # re-code for better alignment with REDCap data
+  mutate(
+    surname = sapply( 1:nrow(.), function(i) make_clean_names( strsplit( name[i], " " )[[1]][1], allow_dupes = T ) ),
+    forname = sapply( 1:nrow(.), function(i) make_clean_names( strsplit( name[i], " " )[[1]][2], allow_dupes = T ) ),
+    id = sapply( 1:nrow(.), function(i) with( nms, study_id[ prijmeni == surname[i] & jmeno == forname[i] ] ) )
+  )
 
 # extract numbers of retrospective vs prospective patients
 sapply( c("retrospective","prospective"), function(i) sum( mrs$IPN %in% pats[[i]] ) ) # 57/57
+
+# extract the same number while adding the Homolka data
+sapply(
+  
+  c("retrospective","prospective"),
+  function(i) {
+    
+    # extract relevant IDs
+    mid <- mrs$IPN[ mrs$IPN %in% pats[[i]] ]
+    hid <- unique( unlist(hom$id) )[ unique( unlist(hom$id) ) %in% pats[[i]] ]
+    
+    # extract number of unions
+    return( length( union(mid,hid) ) )
+    
+  }
+) # 73/96
+
