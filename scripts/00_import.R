@@ -22,20 +22,39 @@ if( !dir.exists("_data") ) dir.create("_data")
 # IN-HOUSE FUNCTIONS ---
 
 # prepare an array of observed data
-obs_array <- function( d, vars, nms, resp ) {
+obs_array <-
   
-  # prepare dimension sizes and names
-  dims <- sapply( setNames(vars,nms), function(i) length( unique( d[[i]] ) ) )
-  dimnms <- lapply( setNames(vars,nms), function(i) unique( d[[i]] ) )
+  function( d, vars, nms, resp ) {
+    
+    # prepare dimension sizes and names
+    dims <- sapply( setNames(vars,nms), function(i) length( unique( d[[i]] ) ) )
+    dimnms <- lapply( setNames(vars,nms), function(i) unique( d[[i]] ) )
+    
+    # prepare a data set with all combinations of vars levels included
+    d <- expand.grid(dimnms) %>% rev() %>% left_join( d, by = vars )
+    
+    # set-up an array for the data
+    out <- array( data = d[[resp]], dim = dims, dimnames = dimnms )
+    return(out)
+    
+  }
+
+# fill-in data from the original data set
+fillin <-
   
-  # prepare a data set with all combinations of vars levels included
-  d <- expand.grid(dimnms) %>% rev() %>% left_join( d, by = vars )
-  
-  # set-up an array for the data
-  out <- array( data = d[[resp]], dim = dims, dimnames = dimnms )
-  return(out)
-  
-}
+  # r = number of rows, v = variable, i = patient id, e = event
+  function( d = d0, r, v, i, e ) {
+    
+    sapply(
+      
+      1:r, # loop through all rows
+      function(j)
+
+        # put in place a safe break for rows missing from the original data set
+        if ( length( d[ d$id == i[j] & d$event == e[j], v ] ) > 0 ) d[ d$id == i[j] & d$event == e[j], v ] else NA
+
+    )
+  }
 
 
 # DATA READ ----
@@ -309,6 +328,67 @@ for ( i in mot$scale ) {
 }
 
 
+# ---- neuropsychology long format data set ----
+
+# pivot all psychological variables and put them to a single table
+df.psy <-
+  
+  lapply(
+    
+    with( psy, setNames(scale,scale) ), # loop through all neuropsychological scales
+    function(i)
+      
+      df[[i]] %>%
+      rownames_to_column("id") %>% # save names from pivoting by extracting them to a column
+      pivot_longer( -id, names_to = "event", values_to = i ) %>% # pivoting proper
+      mutate( row = paste0(id,"_",event) ) %>% # prepare rownames for binding the data frames
+      column_to_rownames("row") %>%
+      select( all_of(i) ) # keep responses only (the rest is in the rownames)
+
+  ) %>%
+  
+  do.call( cbind.data.frame, . ) %>% # binding by do.call(cbind) combo instead of left_join() to spare memory
+  
+  # add some other variables of interest
+  mutate(
+    
+    # extract patients' and events' ids
+    pid = sapply( 1:nrow(.), function(i) strsplit( x = rownames(.)[i], split = "_" )[[1]][1] ), # patient id
+    eid = sapply( 1:nrow(.), function(i) strsplit( x = rownames(.)[i], split = "_" )[[1]][2] ), # event id
+    
+    # extract variables fixed at screening
+    sex = fillin( d0, nrow(.), "sex", pid, rep("screening",nrow(.) ) ),
+    hy = fillin( d0, nrow(.), "hy_stage", pid, rep("screening",nrow(.) ) ),
+    type_pd = fillin( d0, nrow(.), "type_pd", pid, rep("screening",nrow(.) ) ),
+    asym_park = fillin( d0, nrow(.), "asym_park", pid, rep("screening",nrow(.) ) ),
+    edu_years = fillin( d0, nrow(.), "years_edu", pid, rep("screening",nrow(.) ) ),
+    
+    # extract time-varying data
+    ledd_mg = fillin( d0, nrow(.), "ledd", pid, eid ),
+    age_years =
+      time_length(
+        difftime(
+          as.Date( fillin( d0, nrow(.), "datum_drs", pid, eid ) ),
+          as.Date( fillin( d0, nrow(.), "dob", pid, rep( "screening", nrow(.) ) ) )
+        ), "years"
+      ),
+    
+    # put it all before neuropsychological variables
+    .before = 1
+
+  ) %>%
+  
+  # re-code nominal variables
+  mutate(
+    sex = case_when( sex == 0 ~ "female", sex == 1 ~ "male" ),
+    type_pd = case_when( type_pd == 1 ~ "tremor-dominant", type_pd == 2 ~ "akinetic-rigid" ),
+    asym_park = case_when( asym_park == 1 ~ "right", asym_park == 2 ~ "left" ),
+  )
+
+# save it
+write.csv( df.psy, file = here("_data","psycho_long_df.csv"), sep = ",", row.names = F, quote = F )
+
+
 # FREQUENCY TABLES ----
 
 # prepare a folder for tables
@@ -501,3 +581,8 @@ sapply(
   }
 ) # 73/96
 
+
+# SESSION INFO -----
+
+# write the sessionInfo() into a .txt file
+capture.output( sessionInfo(), file = here("scripts","import_envir.txt") )
