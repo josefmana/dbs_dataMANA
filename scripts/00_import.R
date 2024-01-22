@@ -60,7 +60,7 @@ fillin <-
 # DATA READ ----
 
 # read outcome data
-d0 <- read.csv( here("_raw","ITEMPO-ManaExportNeuropsych_DATA_2024-01-09_1537.csv"), sep = "," ) # outcome data
+d0 <- read.csv( here("_raw","ITEMPO-ManaExportNeuropsych_DATA_2024-01-22_1916.csv"), sep = "," ) # outcome data
 its <- read.csv( here("_raw","mds_updrs_iii_redcap_names.csv"), sep = "," ) # MDS UPDRS-III RedCap names
 mot <- read.csv( here("_raw","mds_updrs_iii_scoring.csv"), sep = ";" ) # scoring of MDS UPDRS-III
 psy <- read.csv( here("_raw","psycho_scoring.csv"), sep = ";" ) # scoring of psychological variables

@@ -16,10 +16,9 @@ other attached packages:
  [8] purrr_1.0.2     readr_2.1.5     tidyr_1.3.0     tibble_3.2.1    ggplot2_3.4.1   tidyverse_2.0.0 here_1.0.1     
 
 loaded via a namespace (and not attached):
- [1] cellranger_1.1.0  pillar_1.9.0      compiler_4.2.0    tools_4.2.0       testthat_3.1.4    pkgload_1.2.4    
- [7] digest_0.6.29     lifecycle_1.0.3   gtable_0.3.0      timechange_0.2.0  pkgconfig_2.0.3   rlang_1.1.1      
-[13] cli_3.6.1         rstudioapi_0.15.0 fastmap_1.1.0     xml2_1.3.3        withr_2.5.0       sass_0.4.7       
-[19] fs_1.6.3          desc_1.4.1        generics_0.1.3    vctrs_0.6.5       hms_1.1.3         rprojroot_2.0.3  
-[25] grid_4.2.0        tidyselect_1.2.0  snakecase_0.11.0  glue_1.6.2        R6_2.5.1          fansi_1.0.3      
-[31] tzdb_0.4.0        magrittr_2.0.3    scales_1.2.1      htmltools_0.5.6   colorspace_2.0-3  utf8_1.2.2       
-[37] stringi_1.7.8     munsell_0.5.0     crayon_1.5.1      brio_1.1.3       
+ [1] cellranger_1.1.0  pillar_1.9.0      compiler_4.2.0    tools_4.2.0       digest_0.6.29     lifecycle_1.0.3  
+ [7] gtable_0.3.0      timechange_0.2.0  pkgconfig_2.0.3   rlang_1.1.1       cli_3.6.1         rstudioapi_0.15.0
+[13] fastmap_1.1.0     xml2_1.3.3        withr_2.5.0       sass_0.4.7        fs_1.6.3          generics_0.1.3   
+[19] vctrs_0.6.5       hms_1.1.3         rprojroot_2.0.3   grid_4.2.0        tidyselect_1.2.0  snakecase_0.11.0 
+[25] glue_1.6.2        R6_2.5.1          fansi_1.0.3       tzdb_0.4.0        magrittr_2.0.3    scales_1.2.1     
+[31] htmltools_0.5.6   colorspace_2.0-3  utf8_1.2.2        stringi_1.7.8     munsell_0.5.0    
