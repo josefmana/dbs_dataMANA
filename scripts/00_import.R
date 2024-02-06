@@ -1,6 +1,6 @@
 # This is a script used to prepare clinical data of STN DBS treated PD patients from iTEMPO REDCap database.
 
-# The script extracrs MDS-UPDRS-III, DRS-2, BDI-II, STAI-X1, STAI-X2, FAQ and PDAQ longitudinal data sets
+# The script extracts MDS-UPDRS-III, DRS-2, BDI-II, STAI-X1, STAI-X2, FAQ and PDAQ longitudinal data sets
 # as well as pre-surgery neuropsychological battery data.
 
 # clear environment
