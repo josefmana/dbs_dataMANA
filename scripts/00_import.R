@@ -440,7 +440,7 @@ write.table( df.mot, file = here("_data","motor_long_df.csv"), sep = ",", row.na
 # DATA MOVING ----
 
 #mov <- read.csv( "movers.csv", sep ="," ) # read the file with directions for data moving
-#for ( i in 1:nrow(mov) ) file.copy( from = mov$from[i], to = mov$to[i] ) # move it
+#for ( i in 1:nrow(mov) ) file.copy( from = mov$from[i], to = mov$to[i], overwrite = T ) # move it
 
 
 # FREQUENCY TABLES ----
