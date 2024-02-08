@@ -99,7 +99,7 @@ d0 <-
     surg_date = as.Date( surgery_date, format = "%Y-%m-%d" ),
     
     # extract common motor assessment date
-    motor_date = ifelse( event == "screening", datum_vysetreni_ldopatest, datum_vysetreni_dbsoff ),
+    motor_date =  ifelse( event == "screening", datum_vysetreni_ldopatest, datum_vysetreni_dbson ),
     
     # add variable denoting whether the patient was operated before (retrospective) or after (prospective) 1.1.2018
     data_set = sapply(
@@ -573,9 +573,8 @@ t2 <-
 
 # ---- save all frequency tables ----
 
-# NEED TO FIND A WAY TO SAVE IT AS AN IMAGE
-gtsave( data = t1, filename = here("tabs","neuropsychology_freqtab.docx") )
-gtsave( data = t2, filename = here("tabs","updrs_iii_freqtab.docx") )
+#gtsave( data = t1, filename = here("tabs","neuropsychology_freqtab.docx") )
+#gtsave( data = t2, filename = here("tabs","updrs_iii_freqtab.docx") )
 
 
 # CHECK THE IDENTITY OF MRI SUBJECTS ----
