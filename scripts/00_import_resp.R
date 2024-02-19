@@ -21,6 +21,12 @@ if( !dir.exists("_data") ) dir.create("_data")
 
 # IN-HOUSE FUNCTIONS ---
 
+# swap NAs for zeros
+naswap <- function(x) ifelse( is.na(x), 0, x )
+
+# extract single items from scale descriptions
+itextr <- function(input,x) with( input, strsplit( item[scale==x], ",") )[[1]]
+
 # prepare an array of observed data
 obs_array <-
   
@@ -60,11 +66,15 @@ fillin <-
 # DATA READ ----
 
 # read outcome data
-d0 <- read.csv( here("_raw","ITEMPO-ManaExportNeuropsych_DATA_2024-02-05_1141.csv"), sep = "," ) # outcome data
-its <- read.csv( here("_raw","mds_updrs_iii_redcap_names.csv"), sep = "," ) # MDS UPDRS-III REDCap names
-mot <- read.csv( here("_raw","mds_updrs_iii_scoring.csv"), sep = ";" ) # scoring of MDS UPDRS-III
-psy <- read.csv( here("_raw","psycho_scoring.csv"), sep = ";" ) # scoring of psychological variables
+d0 <- read.csv( here("_raw","data","ITEMPO-ManaExportNeuropsych_DATA_2024-02-18_1157.csv"), sep = "," ) # outcome data
+its <- read.csv( here("helpers","mds_updrs_iii_redcap_names.csv"), sep = "," ) # MDS UPDRS-III REDCap names
+scl <- read.csv( here("helpers","test_scoring.csv"), sep = ";" ) # scales to be imported
 
+#mot <- read.csv( here("_raw","helpers","mds_updrs_iii_scoring.csv"), sep = ";" ) # scoring of MDS UPDRS-III
+#psy <- read.csv( here("_raw","helpers","psycho_scoring.csv"), sep = ";" ) # scoring of psychological variables
+
+# extract all variables of different types
+vars <- sapply( unique(scl$type), function(i) with( scl, scale[type==i] ) )
 
 # RESPONSE DATA EXTRACTION ----
 
@@ -73,10 +83,15 @@ d0 <-
   
   d0 %>%
 
-  # rename identificators and LEDD
+  # rename identificators
   rename( "id" = "study_id" ) %>%
   rename( "event" = "redcap_event_name") %>%
-  rename( "ledd" = "levodopa_equivalent" ) %>%
+  
+  # rename items which are not in an appropriate format
+  rename_with( ~ sub("_[^_]*$","",.x), starts_with("bdi") ) %>%
+  rename_with( ~ sub("iapi","iapi_",.x), starts_with("iapi") ) %>%
+  rename_with( ~ sub("madrs","madrs_",.x), starts_with("madrs") ) %>%
+  rename_with( ~ sub("_q","_",.x), starts_with("apatie") ) %>%
   
   # drop testing data points and non-PD patients
   filter( !(id %in% c("pokusný Řehoř Dobromyslný","TestPAc") ) ) %>%
@@ -91,15 +106,33 @@ d0 <-
       sub( "_arm_1", "", event ) %>% # no need for "_arm_1" anymore
       sub( "nvtva_", "", . ) %>% # no need for "nvtva_" prefix either
       sub( "operace", "surgery", . ) %>% # re-code surgery from Czech to English
-      ifelse( grepl("screening|refresh|surgery", . ), ., sub("r","y",.) ) %>% # re-code from Czech r ('rok') to English y ('year')
+      ifelse( grepl("screening|refresh|surgery", . ), ., sub("r","y",. ) ) %>% # re-code from Czech r ('rok') to English y ('year')
       factor( levels = c( "screening", "refresh", "surgery", paste0( "y", seq(1,21,2) ) ), ordered = T ), # re-format to ordered factor
-    
+
     # re-format surgery date
     # add it as a new variable such that it does not interfere later
     surg_date = as.Date( surgery_date, format = "%Y-%m-%d" ),
     
     # extract common motor assessment date
     motor_date =  ifelse( event == "screening", datum_vysetreni_ldopatest, datum_vysetreni_dbson ),
+    
+    # levodopa equivalent daily dose (calculated manually)
+    # begin by swapping NAs for 0s in the LEDD subcomponents (but keep classical levodopa NA to prevent ended up with bunch of zeros)
+    across( starts_with("daily_dose") & !contains("levodopa"), naswap ),
+    
+    # calculate LEDD by applying the LEDD equation 
+    ledd =
+      
+      daily_dose_levodopa +
+      ifelse( daily_dose_entacapone > 0, 0.33 * daily_dose_levodopa, 0 ) +
+      1.7 * daily_dose_opicapone +
+      1.5 * daily_dose_tolcapone +
+      0.75 * daily_dose_levodopa_extend +
+      100 * daily_dose_pramipexol +
+      20 * daily_dose_ropinirol +
+      30 * daily_dose_rotigotine +
+      10 * daily_dose_selegiline +
+      1 * daily_dose_amantadine,
     
     # add variable denoting whether the patient was operated before (retrospective) or after (prospective) 1.1.2018
     data_set = sapply(
@@ -119,25 +152,11 @@ d0 <-
   # keep only patients with information about when the surgery happened
   filter( complete.cases(data_set) )
 
-# extract patients' IDs conditional on data set type
-pats <-
-  
-  sapply(
-    c("retrospective","prospective"),
-    function(i) {
-      
-      p <- unique( d0[ d0$data_set == i, "id" ] ) # extract the data
-      print( paste0( i, ": N = ", length(p) ) ) # print number of patients
-      return(p) # save the IDs
-      
-    }
-  )
-
 
 # ---- psychological variables pre-processing ----
 
 # extract FAQ item scores
-for( i in unlist( strsplit( with( psy, item[scale=="faq"] ), "," ) ) ) {
+for( i in itextr(scl,"faq") ) {
   
   d0[ , paste0("faq_",i) ] <-
     
@@ -154,17 +173,14 @@ d0 <- d0[ , -which( grepl( "faq_fill|faq_uvod|faq_vykon|faq_nikdy|faq_score", na
 # remove DRS-2 total score from the data set (we want single subscores only)
 d0 <- d0[ , -which( names(d0) == "drsii_total" ) ]
 
-# tidy-up column names for BDI-II
-names(d0)[ grepl("bdi",names(d0)) ] <- names(d0)[ grepl("bdi",names(d0)) ] %>% sub( "_[^_]*$", "", . )
-
 
 # ---- extract item-level data ----
 
 # list variables of interest
-voi <- c( "mds_updrs_iii", psy$scale )
+voi <- c( "mds_updrs_iii", with( vars, c( psychology, psychiatry ) ) )
 
 # add UPDRS III item score for pre-surgery ldopatest in patients who were missing it in original
-for( i in with( mot, strsplit( item[scale=="updrs_iii"], ",")[[1]] ) ) {
+for( i in itextr(scl,"updrs_iii") ) {
   
   with(
     its, {
@@ -258,7 +274,7 @@ d1 <-
           
           pivot_longer(
             data = d0,
-            cols = contains( paste0(i,"_") ),
+            cols = starts_with( paste0(i,"_") ),
             values_to = "score",
             names_to = "item",
             names_transform = function(x) sub( paste0(i,"_"), "", x )
@@ -278,20 +294,20 @@ d1 <-
   )
 
 # save the resulting array as .rds file
-saveRDS( object = d1, file = "_data/response_data.rds" )
+saveRDS( object = d1, file = here("_data","resp_data.rds") )
 
 
 # RESPONSE DATA TRANSFORMATION ----
 
 # in this chunk of code we pre-process (i.e., sum items for the most part) response data
-# start by reversing item scores where applicable (psychological variables only, no reverse items in MDS UPDRS-III)
+# start by reversing item scores where applicable
 with(
   
-  psy,
+  scl,
   for ( i in scale[complete.cases(rev)] ) for ( j in unlist( strsplit(rev[scale==i],",") ) ) {
     
     # reverse item scores by subtracting raw score from scale's (min + max)
-    d1[[i]][j, , ] <<- # double arrow to ensure the results will go beyond with()
+    d1[[i]][j, , ] <<- # double arrow to ensure results will go beyond with()
       ( max[scale==i] + min[scale==i] ) - d1[[i]][j, , ]
     
   }
@@ -299,24 +315,28 @@ with(
 )
 
 # prepare an array for MDS UPDRS-III subscales
-for ( i in mot$scale[-1] ) d1[[i]] <- d1$mds_updrs_iii[ with( mot, unlist( strsplit( item[scale==i], "," ) ) ), , , , ]
+for ( i in vars$motor[-1] ) d1[[i]] <- d1$mds_updrs_iii[ itextr(scl,i), , , , ]
 
 
 # ---- prepare a wide dataframes with outcomes ----
+
+# not using IAPI so far
+vars$psychology <- vars$psychology[ vars$psychology != "iapi" ]
 
 # prepare a dataframe with sum scores of each psychological variable of interest
 df <-
   
   lapply(
     
-    with( psy, setNames(scale,scale) ),
+    with( vars, setNames(psychology,psychology) ),
     function(i)
-      sapply( dimnames(d1$faq)$event, function(j) colSums( d1[[i]][ ,j, ], na.rm = F ) ) %>% as.data.frame()
+      sapply( dimnames(d1$faq)$event, function(j) colSums( d1[[i]][ ,j, ], na.rm = F ) ) %>%
+      as.data.frame()
     
   )
 
 # add to df MDS UPDRS-III (sub)scales
-for ( i in mot$scale ) {
+for ( i in vars$motor ) {
   
   df[[i]] <-
     
@@ -353,13 +373,13 @@ for ( i in mot$scale ) {
 # ---- long format data sets ----
 
 # prepare a data set separately for neuropsychological and motor outcomes
-for( i in c("psy","mot") ) assign(
-  
-  paste0("df.",i),
-  
+for( i in c("psychology","motor") ) assign(
+
+  paste0( "df.", substr(i,1,3) ),
+
   lapply(
 
-    with( get(i), setNames(scale,scale) ), # loop through all neuropsychological scales
+    setNames( vars[[i]], vars[[i]] ), # loop through all neuropsychological scales
     function(j)
       
       df[[j]] %>%
@@ -368,14 +388,14 @@ for( i in c("psy","mot") ) assign(
       mutate( row = paste0(id,"_",event) ) %>% # prepare rownames for binding the data frames
       column_to_rownames("row") %>%
       select( all_of(j) ) # keep responses only (the rest is in the rownames)
-    
+
   ) %>%
-    
+  
     do.call( cbind.data.frame, . ) %>% # binding by do.call(cbind) combo instead of left_join() to spare memory
-    
+
     # add some other variables of interest
     mutate(
-      
+
       # extract patients' and events' ids
       id = sapply( 1:nrow(.), function(j) strsplit( x = rownames(.)[j], split = "_" )[[1]][1] ), # patient id
       event = sapply( 1:nrow(.), function(j) tail( strsplit( x = rownames(.)[j], split = "_" )[[1]], n = 1) ), # event
@@ -408,10 +428,12 @@ for( i in c("psy","mot") ) assign(
     
     # re-code nominal variables
     mutate(
+      
       sex = case_when( sex == 0 ~ "female", sex == 1 ~ "male" ),
       type_pd = case_when( type_pd == 1 ~ "tremor-dominant", type_pd == 2 ~ "akinetic-rigid" ),
       asym_park = case_when( asym_park == 1 ~ "right", asym_park == 2 ~ "left" ),
       event = factor( event, levels = c( "screening", paste0( "y", seq(1,19,2) ) ), ordered = T )
+    
     ) %>%
     
     # drop dummy columns for time calculations
@@ -439,203 +461,36 @@ write.table( df.mot, file = here("_data","motor_long_df.csv"), sep = ",", row.na
 
 # DATA MOVING ----
 
-#mov <- read.csv( "movers.csv", sep ="," ) # read the file with directions for data moving
-#for ( i in 1:nrow(mov) ) file.copy( from = mov$from[i], to = mov$to[i], overwrite = T ) # move it
-
-
-# FREQUENCY TABLES ----
-
-# prepare a folder for tables
-if( !dir.exists("tabs") ) dir.create("tabs")
-
-# extract frequency tables for all neuropsychology as well as MDS-UPDRS III
-t <-
+# extract patients' IDs conditional on data set type
+pats <-
   
-  lapply(
-    
-    setNames( sub("mds_","",voi), sub("mds_","",voi) ), # loop through variables of interest
-    function(i)
+  sapply(
+    c("retrospective","prospective"),
+    function(i) {
       
-      df[[i]] %>%
+      p <- unique( d0[ d0$data_set == i, "id" ] ) # extract the data
+      print( paste0( i, ": N = ", length(p) ) ) # print number of patients
+      return(p) # save the IDs
       
-      # add data set index
-      mutate(
-        data_set = sapply(
-          rownames(.),
-          function(i)
-            case_when(
-              i %in% pats$retrospective ~ "retrospective",
-              i %in% pats$prospective ~ "prospective"
-            )
-        )
-      ) %>%
-      
-      # make it longer
-      pivot_longer(
-        cols = !data_set,
-        names_to = if ( i == "updrs_iii") c("dbs","med","event") else "event", 
-        names_sep = if ( i == "updrs_iii") "_" else NULL,
-        values_to = i
-      ) %>%
-      
-      # keep only complete cases and create table out of it
-      na.omit() %>%
-      select( if ( i == "updrs_iii") c("data_set","event","med","dbs") else c("data_set", "event") ) %>%
-      table() %>%
-      as.data.frame() %>%
-      
-      # 
-      pivot_wider( names_from = data_set, values_from = Freq ) %>%
-      relocate( retrospective, .before = prospective ) %>%
-      
-      # order it by event
-      mutate( event = factor( event, levels = c( "screening", paste0("y",seq(1,21,2)) ), ordered = T ) ) %>%
-      arrange( event )
-    
+    }
   )
 
-# ---- neuropsychology frequency table ----
+# read the file with directions for data moving
+mov <- read.csv( "movers.csv", sep ="," )
 
-# prepare a gt object
-t1 <-
-  
-  t[ c("drsii","faq","pdaq","bdi","staix1","staix2") ] %>%
-  
-  # glue all different neuropsychology measures to a single wide file
-  reduce( left_join, by = "event" ) %>%
-  relocate( starts_with("retro"), .after = event ) %>%
-  mutate( across( where(is.numeric), ~ ifelse( is.na(.x), 0, .x ) ) ) %>%
-  
-  # prepare a gt object with separate columns for prospective and retrospective data
-  gt( caption = "Neuropsychological data" ) %>%
-  tab_spanner( label = "Retrospective", columns = starts_with("retrospective") ) %>%
-  tab_spanner( label = "Prospective", columns = starts_with("prospective") ) %>%
-  
-  # re-label columns
-  cols_label( ends_with("ve.x.x.x") ~ "STAIX1", ends_with("ve.y.y.y") ~ "STAIX2" ) %>%
-  cols_label(  ends_with("ve.x.x") ~ "PDAQ", ends_with("ve.y.y") ~ "BDI-II" ) %>%
-  cols_label( ends_with("ve.x") ~ "DRS-2", ends_with("ve.y") ~ "FAQ" ) %>%
-  
-  # align the text to left for event and center for frequencies
-  cols_align( align = "left", columns = "event" ) %>%
-  cols_align( align = "center", columns = -1 )
-  
+# loop through all final destinations
+for ( i in 1:nrow(mov) ) with(
 
-# ---- motor signs frequency table ----
-
-# prepare a gt object
-t2 <-
-  
-  t$updrs_iii %>%
-  
-  # re-code zero for "-" at place where no value could have been produced
-  mutate(
-    across(
-      all_of( c("retrospective","prospective") ),
-      ~ case_when(
-        event == "screening" & dbs != "none" ~ "-", # no Stim. ON or OFF measures before surgery
-        event != "screening" & dbs == "none" ~ "-", # no non-Stim measures after surgery
-        .default = as.character(.x)
-      )
-    )
-
-  ) %>%
-  
-  # spread the table
-  pivot_wider(
-    names_from = c("med","dbs"), names_sep = "_",
-    values_from = c("retrospective","prospective"),
-    id_cols = "event"
-  ) %>%
-  
-  # order the columns appropriately
-  relocate( starts_with("retrospective_off"), .after = event ) %>%
-  relocate( starts_with("prospective_off"), .after = retrospective_on_on ) %>%
-  
-  # prepare a gt object with separate columns for prospective and retrospective data
-  gt( caption = "UPDRS III data" ) %>%
-  
-  # lowermost spanner for medication condition (gather = F for retaining column order)
-  tab_spanner( label = "Medication OFF", columns = contains("_off_"), gather = F ) %>%
-  tab_spanner( label = "Medication ON", columns = contains("_on_"), gather = F ) %>%
-  
-  # uppermost spanner for data set type
-  tab_spanner( label = "Retrospective", columns = starts_with("retrospective"), gather = F ) %>%
-  tab_spanner( label = "Prospective", columns = starts_with("prospective"), gather = F ) %>%
-  
-  # label columns according to stimulation condition
-  cols_label(
-    ends_with("_none") ~ "No Stim.",
-    ends_with("_off") ~ "Stim. OFF",
-    ends_with("_on") ~ "Stim. ON"
-  )
-
-
-# ---- save all frequency tables ----
-
-#gtsave( data = t1, filename = here("tabs","neuropsychology_freqtab.docx") )
-#gtsave( data = t2, filename = here("tabs","updrs_iii_freqtab.docx") )
-
-
-# CHECK THE IDENTITY OF MRI SUBJECTS ----
-
-# read the list of MRI subjects
-mrs <- read.csv( here("_raw","MRIsubjects_key.csv"), sep = ";" ) # CLIMABI 113 data set
-
-# extract name-to-IPN file
-nms <-
-  
-  read.csv( here("_raw","ITEMPO_DATA_2024-01-12_1054.csv"), sep = "," ) %>%
-  select( study_id, jmeno, prijmeni ) %>% # keep columns of interest only
-  mutate( across( c("jmeno","prijmeni"), ~ make_clean_names( .x, allow_dupes = T ) ) ) # re-code for later
-
-# read the list of all patients at Na Homolce's disks
-hom <-
-  
-  lapply(
-
-    list.files( here("_raw","homolka") ), # loop throug file names
-    function(i)
-      
-      read_excel( here("_raw","homolka",i), sheet = 1, col_names = F ) %>% # read the data
-      select(1,6,7) %>% # keep only selected columns of interest
-      `colnames<-`( c("name","type","note") ) %>%
-      mutate( year = gsub( "\\D", "", i ) ) # add year of MRI
-
-  ) %>%
-  
-  # pull all years together and re-code some
-  do.call( rbind.data.frame, . ) %>%
-  filter( grepl("DBS|dbs", type ) ) %>%
-  
-  # re-code for better alignment with REDCap data
-  mutate(
-    surname = sapply( 1:nrow(.), function(i) make_clean_names( strsplit( name[i], " " )[[1]][1], allow_dupes = T ) ),
-    forname = sapply( 1:nrow(.), function(i) make_clean_names( strsplit( name[i], " " )[[1]][2], allow_dupes = T ) ),
-    id = sapply( 1:nrow(.), function(i) with( nms, study_id[ prijmeni == surname[i] & jmeno == forname[i] ] ) )
-  )
-
-# extract numbers of retrospective vs prospective patients
-sapply( c("retrospective","prospective"), function(i) sum( mrs$IPN %in% pats[[i]] ) ) # 57/57
-
-# extract the same number while adding the Homolka data
-sapply(
-  
-  c("retrospective","prospective"),
-  function(i) {
+  mov, {
     
-    # extract relevant IDs
-    mid <- mrs$IPN[ mrs$IPN %in% pats[[i]] ]
-    hid <- unique( unlist(hom$id) )[ unique( unlist(hom$id) ) %in% pats[[i]] ]
-    
-    # extract number of unions
-    return( length( union(mid,hid) ) )
+    print( paste0( "moving from ", from[i], " to ", to[i] ) ) # print info
+    file.copy( from = from[i], to = to[i], overwrite = T ) # move it
     
   }
-) # 73/96
+)
 
 
 # SESSION INFO -----
 
 # write the sessionInfo() into a .txt file
-capture.output( sessionInfo(), file = here("scripts","import_envir.txt") )
+capture.output( sessionInfo(), file = here("scripts","import_resp_envir.txt") )
