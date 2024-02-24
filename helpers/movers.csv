@@ -9,3 +9,4 @@ _data/motor_long_df.csv,../neuroFILA/_raw/motor_sum_scores.csv
 _data/resp_data.rds,../postopHEMI/_raw/item_responses.rds
 _data/motor_long_df.csv,../postopHEMI/_raw/motor_sum_scores.csv
 _data/motor_long_df.csv,../../pd/demCR1T/_raw/motor_sum_scores.csv
+_data/preop_lvlII.csv,../../pd/demCR1T/_raw/lvlII_assessment.csv

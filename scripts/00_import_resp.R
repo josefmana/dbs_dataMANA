@@ -1,6 +1,6 @@
 # This is a script used to prepare clinical data of STN DBS treated PD patients from iTEMPO REDCap database.
 
-# The script extracts MDS-UPDRS-III, DRS-2, BDI-II, STAI-X1, STAI-X2, FAQ and PDAQ longitudinal data sets
+# The script extracts MDS-UPDRS-III, DRS-2, BDI-II, STAI-X1, STAI-X2, FAQ, PDAQ, IAPI, MADRS and SAS longitudinal data sets
 # as well as pre-surgery neuropsychological battery data.
 
 # clear environment
@@ -45,7 +45,7 @@ obs_array <-
     
   }
 
-# fill-in data from the original data set
+# fill-in data from the original raw data frame
 fillin <-
   
   # r = number of rows, v = variable, i = patient id, e = event
@@ -69,16 +69,12 @@ fillin <-
 d0 <- read.csv( here("_raw","data","ITEMPO-ManaExportNeuropsych_DATA_2024-02-18_1157.csv"), sep = "," ) # outcome data
 its <- read.csv( here("helpers","mds_updrs_iii_redcap_names.csv"), sep = "," ) # MDS UPDRS-III REDCap names
 scl <- read.csv( here("helpers","test_scoring.csv"), sep = ";" ) # scales to be imported
-
-#mot <- read.csv( here("_raw","helpers","mds_updrs_iii_scoring.csv"), sep = ";" ) # scoring of MDS UPDRS-III
-#psy <- read.csv( here("_raw","helpers","psycho_scoring.csv"), sep = ";" ) # scoring of psychological variables
+bat <- read.csv( here("helpers","neurpsy_bat.csv"), sep = "," ) # pre-surgery neuropsychological battery
 
 # extract all variables of different types
 vars <- sapply( unique(scl$type), function(i) with( scl, scale[type==i] ) )
 
-# RESPONSE DATA EXTRACTION ----
-
-# do some housekeeping of the data
+# do some housekeeping of the original data
 d0 <-
   
   d0 %>%
@@ -111,7 +107,7 @@ d0 <-
 
     # re-format surgery date
     # add it as a new variable such that it does not interfere later
-    surg_date = as.Date( surgery_date, format = "%Y-%m-%d" ),
+    #surg_date = as.Date( surgery_date, format = "%Y-%m-%d" ),
     
     # extract common motor assessment date
     motor_date =  ifelse( event == "screening", datum_vysetreni_ldopatest, datum_vysetreni_dbson ),
@@ -134,26 +130,15 @@ d0 <-
       10 * daily_dose_selegiline +
       1 * daily_dose_amantadine,
     
-    # add variable denoting whether the patient was operated before (retrospective) or after (prospective) 1.1.2018
-    data_set = sapply(
-      
-      1:nrow(.),
-      function(i)
-        
-        case_when(
-          id[i] %in% id[ surg_date < "2018-01-01"] ~ "retrospective",
-          id[i] %in% id[ surg_date >= "2018-01-01"] ~ "prospective"
-        )
+    # re-code nominal variables for later
+    sex = case_when( sex == 0 ~ "female", sex == 1 ~ "male" ),
+    type_pd = case_when( type_pd == 1 ~ "tremor-dominant", type_pd == 2 ~ "akinetic-rigid" ),
+    asym_park = case_when( asym_park == 1 ~ "right", asym_park == 2 ~ "left" ),
 
-    )
-  
-  ) %>%
-  
-  # keep only patients with information about when the surgery happened
-  filter( complete.cases(data_set) )
+  )
 
 
-# ---- psychological variables pre-processing ----
+# RAW LONGITUDINAL DATA ----
 
 # extract FAQ item scores
 for( i in itextr(scl,"faq") ) {
@@ -174,7 +159,7 @@ d0 <- d0[ , -which( grepl( "faq_fill|faq_uvod|faq_vykon|faq_nikdy|faq_score", na
 d0 <- d0[ , -which( names(d0) == "drsii_total" ) ]
 
 
-# ---- extract item-level data ----
+# extract item-level data ----
 
 # list variables of interest
 voi <- c( "mds_updrs_iii", with( vars, c( psychology, psychiatry ) ) )
@@ -297,7 +282,7 @@ d1 <-
 saveRDS( object = d1, file = here("_data","resp_data.rds") )
 
 
-# RESPONSE DATA TRANSFORMATION ----
+# LONGITUDINAL SUM SCORES ----
 
 # in this chunk of code we pre-process (i.e., sum items for the most part) response data
 # start by reversing item scores where applicable
@@ -318,12 +303,12 @@ with(
 for ( i in vars$motor[-1] ) d1[[i]] <- d1$mds_updrs_iii[ itextr(scl,i), , , , ]
 
 
-# ---- prepare a wide dataframes with outcomes ----
+# wide format data sets ----
 
 # not using IAPI so far
 vars$psychology <- vars$psychology[ vars$psychology != "iapi" ]
 
-# prepare a dataframe with sum scores of each psychological variable of interest
+# prepare a dataframe with sum scores of each psycho variable of interest
 df <-
   
   lapply(
@@ -370,7 +355,7 @@ for ( i in vars$motor ) {
 }
 
 
-# ---- long format data sets ----
+# long format data sets ----
 
 # prepare a data set separately for neuropsychological and motor outcomes
 for( i in c("psychology","motor") ) assign(
@@ -411,12 +396,12 @@ for( i in c("psychology","motor") ) assign(
       ledd_mg = fillin( d0, nrow(.), "ledd", id, event ),
       
       # dummy variables for time calculations
-      ass_date = as.Date( fillin( d0, nrow(.), case_when( i == "psy" ~ "datum_drs", i == "mot" ~ "motor_date" ), id, event ) ),
+      ass_date = as.Date( fillin( d0, nrow(.), case_when( i == "psychology" ~ "datum_drs", i == "motor" ~ "motor_date" ), id, event ) ),
       birth_date = as.Date( fillin( d0, nrow(.), "dob", id, rep( "screening", nrow(.) ) ) ),
-      surg_date = as.Date( fillin( d0, nrow(.), "surgery_date", id, rep( "surgery", nrow(.) ) ), origin = "1899-12-30" ),
+      surg_date = as.Date( fillin( d0, nrow(.), "surgery_date", id, rep( "surgery", nrow(.) ) ) ),
       vat_date = as.Date( fillin( d0, nrow(.), "datum", id, event ) ),
       
-      # age at assessment is little bit trickier
+      # time-lengths
       age_years = time_length( difftime(ass_date,birth_date), "years" ),
       stimtime_years = time_length( difftime(ass_date,surg_date), "years" ),
       vattime_months = time_length( difftime(ass_date,vat_date), "months"),
@@ -426,18 +411,11 @@ for( i in c("psychology","motor") ) assign(
       
     ) %>%
     
-    # re-code nominal variables
-    mutate(
-      
-      sex = case_when( sex == 0 ~ "female", sex == 1 ~ "male" ),
-      type_pd = case_when( type_pd == 1 ~ "tremor-dominant", type_pd == 2 ~ "akinetic-rigid" ),
-      asym_park = case_when( asym_park == 1 ~ "right", asym_park == 2 ~ "left" ),
-      event = factor( event, levels = c( "screening", paste0( "y", seq(1,19,2) ) ), ordered = T )
-    
-    ) %>%
-    
     # drop dummy columns for time calculations
     select( !ends_with("_date") ) %>%
+    
+    # make event ordered factor
+    mutate( event = factor( event, levels = c( "screening", paste0( "y", seq(1,21,2) ) ), ordered = T ) ) %>%
     
     # sort by IDs and events
     arrange( id, event )
@@ -459,35 +437,51 @@ write.table( df.psy, file = here("_data","psych_long_df.csv"), sep = ",", row.na
 write.table( df.mot, file = here("_data","motor_long_df.csv"), sep = ",", row.names = F, quote = F )
 
 
+# PREOP NEUROPSYCHOLOGICAL BATTERY ----
+
+# extract pre-surgery neuropsychology data set
+d2 <-
+  
+  # extract variables and rows of interest
+  d0 %>%
+  filter( event == "screening" ) %>%
+  mutate( age_years = time_length( difftime( as.Date(datum_neuropsy_23afdc), as.Date(dob) ), "years" ) ) %>%
+  select( id, sex, hy_stage, type_pd, asym_park, years_edu, age_years, all_of(bat$test) ) %>%
+
+  # pivot it
+  pivot_longer(
+    cols = all_of(bat$test),
+    names_to = "test",
+    values_to = "score"
+  ) %>%
+  
+  # add test info
+  left_join( bat, by = "test" ) %>%
+  
+  # tidy-up
+  rename( "edu_years" = "years_edu" ) %>%
+  mutate( test = case_when( grepl("nart",test) ~ "nart", grepl("mmse",test) ~ "mmse", .default = test ) )
+
+# save it
+write.table( d2, file = here("_data","preop_lvlII.csv"), sep = ",", row.names = F, quote = F )
+
+
 # DATA MOVING ----
 
-# extract patients' IDs conditional on data set type
-pats <-
-  
-  sapply(
-    c("retrospective","prospective"),
-    function(i) {
-      
-      p <- unique( d0[ d0$data_set == i, "id" ] ) # extract the data
-      print( paste0( i, ": N = ", length(p) ) ) # print number of patients
-      return(p) # save the IDs
-      
-    }
-  )
-
 # read the file with directions for data moving
-mov <- read.csv( "movers.csv", sep ="," )
+#mov <- read.csv( here("helpers","movers.csv"), sep ="," )
 
 # loop through all final destinations
-for ( i in 1:nrow(mov) ) with(
+#for ( i in 1:nrow(mov) ) with(
+#
+#  mov, {
+#    
+#    print( paste0( "moving from ", from[i], " to ", to[i] ) ) # print info
+#    file.copy( from = from[i], to = to[i], overwrite = T ) # move it
+#    
+#  }
+#)
 
-  mov, {
-    
-    print( paste0( "moving from ", from[i], " to ", to[i] ) ) # print info
-    file.copy( from = from[i], to = to[i], overwrite = T ) # move it
-    
-  }
-)
 
 
 # SESSION INFO -----
