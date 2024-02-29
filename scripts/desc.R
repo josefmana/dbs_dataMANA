@@ -84,7 +84,7 @@ figprint <-
       coord_flip() +
       theme(
         legend.position = "none",
-        plot.title = element_text( size = 24, face = "bold", hjust = .5 ),
+        plot.title = element_text( size = 20, face = "bold", hjust = .5 ),
         plot.subtitle = element_text( size = 14, hjust = .5 )
       )
     
