@@ -9,3 +9,4 @@ After extracting and wrangling the data, they are distributed for analysis to fo
   - [iadLONG](https://github.com/josefmana/dbs_iadLONG.git) for a study of longitudinal change in instrumental activities of daily living in STN DBS treated PD
   - [neuroFILA](https://github.com/josefmana/dbs_neuroFILA.git) for a study linking neurofilamenta to cognitive symptoms in PD (the repository is Private so far)
   - [demCR1T](https://github.com/josefmana/pd_demCR1T.git) for a study evaluating validity of criteria for PD dementia (the repository is Private so far)
+  - [weighDEP](https://github.com/josefmana/pd_weighDEP.git) for a study investigating covariance between postoperative weight and depressive symptoms changes
