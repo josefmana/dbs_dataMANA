@@ -4,6 +4,7 @@ _data/motor_long_df.csv,../connREPLI/_raw/motor_sum_scores.csv
 _data/resp_data.rds,../iadLONG/_raw/item_responses.rds
 _data/psych_long_df.csv,../iadLONG/_raw/psych_sum_scores.csv
 _data/motor_long_df.csv,../iadLONG/_raw/motor_sum_scores.csv
+_data/preop_lvlII.csv,../iadLONG/_raw/preop_assessment.csv
 _data/psych_long_df.csv,../neuroFILA/_raw/psych_sum_scores.csv
 _data/motor_long_df.csv,../neuroFILA/_raw/motor_sum_scores.csv
 _data/resp_data.rds,../postopHEMI/_raw/item_responses.rds
