@@ -396,8 +396,10 @@ for( i in c("psych","motor") ) assign(
       birth_date = as.Date( fillin( d0, nrow(.), "dob", id, rep( "screening", nrow(.) ) ) ),
       surg_date = as.Date( fillin( d0, nrow(.), "surgery_date", id, rep( "surgery", nrow(.) ) ) ),
       vat_date = as.Date( fillin( d0, nrow(.), "datum", id, event ) ),
+      pd_start_date = fillin( d0, nrow(.), "rok_vzniku_pn", id, rep("screening",nrow(.) ) ),
       
       # time-lengths
+      pd_dur = year(ass_date) - pd_start_date,
       age_years = time_length( difftime(ass_date,birth_date), "years" ),
       stimtime_years = time_length( difftime(ass_date,surg_date), "years" ),
       vattime_months = time_length( difftime(ass_date,vat_date), "months"),
