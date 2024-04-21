@@ -444,7 +444,8 @@ d2 <-
   d0 %>%
   filter( event == "screening" ) %>%
   mutate( age_years = time_length( difftime( as.Date(datum_neuropsy_23afdc), as.Date(dob) ), "years" ) ) %>%
-  select( id, sex, hy_stage, type_pd, asym_park, years_edu, age_years, all_of(bat$test) ) %>%
+  mutate( pd_dur = year( as.Date(datum_neuropsy_23afdc) ) - rok_vzniku_pn ) %>%
+  select( id, sex, hy_stage, type_pd, asym_park, pd_dur, years_edu, age_years, all_of(bat$test) ) %>%
 
   # pivot it
   pivot_longer(
