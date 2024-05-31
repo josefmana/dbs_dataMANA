@@ -6,6 +6,7 @@ mods/**/*.rds
 _*/
 
 # History files
+.Rprofile
 .Rhistory
 .Rapp.history
 

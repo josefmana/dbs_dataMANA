@@ -14,3 +14,6 @@ _data/preop_lvlII.csv,../../pd/demCR1T/_raw/lvlII_assessment.csv
 _data/psych_long_df.csv,../weighDEP/_raw/psych_sum_scores.csv
 _data/resp_data.rds,../weighDEP/_raw/item_responses.rds
 _data/motor_long_df.csv,../weighDEP/_raw/motor_sum_scores.csv
+_data/psych_long_df.csv,../coGBA/_raw/psych_longit.csv
+_data/motor_long_df.csv,../coGBA/_raw/motor_longit.csv
+_data/preop_lvlII.csv,../coGBA/_raw/psych_preop.csv

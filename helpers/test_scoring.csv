@@ -2,6 +2,7 @@ scale;name;long;type;item;rev;min;max;col
 faq;FAQ;Functional Activities Questionnaire;psychology;1,2,3,4,5,6,7,8,9,10;NA;0;3;goldenrod4
 pdaq;PDAQ;Penn Parkinson’s Daily Activities Questionnaire;psychology;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15;NA;0;4;goldenrod3
 drsii;DRS-2;Mattis Dementia Rating Scale;psychology;attention,initiation,construction,conceptualisation,memory;NA;0;NA;goldenrod2
+smc;SMC;Subjective Memory Complaints;psychology;1,2,3,4,5,6,7,8,9,10;NA;0;NA;goldenrod1
 bdi;BDI-II;Beck Depression Inventory;psychology;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21;NA;0;3;dodgerblue4
 staix1;STAIX1;State-Trait Anxiety Inventory (state anxiety);psychology;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20;1,2,5,8,10,11,15,16,19,20;1;4;dodgerblue3
 staix2;STAIX2;State-Trait Anxiety Inventory (trait anxiety);psychology;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20;1,6,7,10,13,16,19;1;4;dodgerblue2

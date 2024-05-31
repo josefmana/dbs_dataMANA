@@ -3,17 +3,14 @@
 # The script extracts MDS-UPDRS-III, DRS-2, BDI-II, STAI-X1, STAI-X2, FAQ, PDAQ, IAPI, MADRS and SAS longitudinal data sets
 # as well as pre-surgery neuropsychological battery data.
 
-# clear environment
-rm( list = ls() )
+rm( list = ls() ) # clear environment
 
-# list packages to be used
-pkgs <- c("here","tidyverse","purrr","gt","readxl","janitor")
-
-# load or install each of the packages as needed
-for ( i in pkgs ) {
-  if ( i %in% rownames( installed.packages() ) == F ) install.packages(i) # install if it ain't installed yet
-  if ( i %in% names( sessionInfo()$otherPkgs ) == F ) library( i , character.only = T ) # load if it ain't loaded yet
-}
+# load packages
+library(here)
+library(tidyverse)
+library(purrr)
+library(readxl)
+library(janitor)
 
 # prepare a data folder for the outcomes
 if( !dir.exists("_data") ) dir.create("_data")
@@ -65,8 +62,7 @@ fillin <-
 
 # DATA READ ----
 
-# read outcome data
-d0 <- read.csv( here("_raw","data","ITEMPO-ManaExportNeuropsych_DATA_2024-02-18_1157.csv"), sep = "," ) # outcome data
+d0 <- read.csv( here("_raw","data","ITEMPO-ManaExportNeuropsych_DATA_2024-05-31_2055.csv"), sep = "," ) # outcome data
 its <- read.csv( here("helpers","mds_updrs_iii_redcap_names.csv"), sep = "," ) # MDS UPDRS-III REDCap names
 scl <- read.csv( here("helpers","test_scoring.csv"), sep = ";" ) # scales to be imported
 bat <- read.csv( here("helpers","neurpsy_bat.csv"), sep = "," ) # pre-surgery neuropsychological battery
@@ -95,6 +91,9 @@ d0 <-
   
   # re-format some
   mutate(
+    
+    # get rid of any underscores in ID
+    id = gsub("_","",id),
     
     # re-code and re-format event names
     event =
@@ -130,6 +129,7 @@ d0 <-
     sex = case_when( sex == 0 ~ "female", sex == 1 ~ "male" ),
     type_pd = case_when( type_pd == 1 ~ "tremor-dominant", type_pd == 2 ~ "akinetic-rigid" ),
     asym_park = case_when( asym_park == 1 ~ "right", asym_park == 2 ~ "left" ),
+    neurpsy_concl = case_when( neurpsy_concl == 1 ~ "PD-NC", neurpsy_concl == 2 ~ "PD-MCI", neurpsy_concl == 3 ~ "PD-D" )
 
   )
 

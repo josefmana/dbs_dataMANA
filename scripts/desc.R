@@ -1,16 +1,10 @@
 # This script extracts descriptions (numerical & visual). It ought to be run only after 00_import.R!
 
-# clear environment
-rm( list = ls() )
+rm( list = ls() ) # clear environment
 
-# list required packages into a character object
-pkgs <- c("here","tidyverse","ggplot2")
-
-# load or install packages as needed
-for ( i in pkgs ) {
-  if ( i %in% rownames( installed.packages() ) == F ) install.packages(i) # install if it ain't installed yet
-  if ( i %in% names( sessionInfo()$otherPkgs ) == F ) library( i , character.only = T ) # load if it ain't loaded yet
-}
+# load packages
+library(here)
+library(tidyverse)
 
 # prepare a folder for tables and figures
 sapply( c("tabs","figs") , function(i) if( !dir.exists(i) ) dir.create(i) )
