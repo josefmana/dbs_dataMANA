@@ -129,7 +129,8 @@ d0 <-
     sex = case_when( sex == 0 ~ "female", sex == 1 ~ "male" ),
     type_pd = case_when( type_pd == 1 ~ "tremor-dominant", type_pd == 2 ~ "akinetic-rigid" ),
     asym_park = case_when( asym_park == 1 ~ "right", asym_park == 2 ~ "left" ),
-    neurpsy_concl = case_when( neurpsy_concl == 1 ~ "PD-NC", neurpsy_concl == 2 ~ "PD-MCI", neurpsy_concl == 3 ~ "PD-D" )
+    neurpsy_concl = case_when( neurpsy_concl == 1 ~ "PD-NC", neurpsy_concl == 2 ~ "PD-MCI", neurpsy_concl == 3 ~ "PD-D" ),
+    stn_dbs = ifelse( target_final == 1, 1, 0 )
 
   )
 
@@ -416,7 +417,10 @@ for( i in c("psych","motor") ) assign(
     mutate( event = factor( event, levels = c( "screening", paste0( "y", seq(1,21,2) ) ), ordered = T ) ) %>%
     
     # sort by IDs and events
-    arrange( id, event )
+    arrange( id, event ) %>%
+    
+    # add STN DBS indicator
+    left_join( na.omit( d0[ , c("id","stn_dbs") ] ), by = "id" )
 
 )
 
@@ -481,9 +485,3 @@ write.table( d2, file = here("_data","preop_lvlII.csv"), sep = ",", row.names = 
 #  }
 #)
 
-
-
-# SESSION INFO -----
-
-# write the sessionInfo() into a .txt file
-capture.output( sessionInfo(), file = here("scripts","import_envir.txt") )
