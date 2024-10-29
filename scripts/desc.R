@@ -90,7 +90,7 @@ figprint <-
 
 # VISUALISATION OF ASSESSMENTS PRESENT ----
 
-# loop through all outcomes and draw figures with included mesures
+# loop through all outcomes and draw figures with included measures
 for ( i in 1:nrow(scl) ) with(
   
   scl,

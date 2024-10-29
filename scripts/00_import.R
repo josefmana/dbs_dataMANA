@@ -417,10 +417,7 @@ for( i in c("psych","motor") ) assign(
     mutate( event = factor( event, levels = c( "screening", paste0( "y", seq(1,21,2) ) ), ordered = T ) ) %>%
     
     # sort by IDs and events
-    arrange( id, event ) %>%
-    
-    # add STN DBS indicator
-    left_join( na.omit( d0[ , c("id","stn_dbs") ] ), by = "id" )
+    arrange( id, event )
 
 )
 
@@ -433,6 +430,15 @@ df.mot <-
     med = sapply( 1:nrow(.), function(i) strsplit( x = rownames(.)[i], split = "_" )[[1]][3] ), # medication condition
     .after = event
   )
+
+# add STN DBS indicator
+for ( i in c("psy","mot") ) assign(
+  
+  paste0("df.",i),
+  get( paste0("df.",i) ) %>% left_join( na.omit( d0[ , c("id","stn_dbs") ] ), by = "id" )
+  
+)
+
 
 # save them
 write.table( df.psy, file = here("_data","psych_long_df.csv"), sep = ",", row.names = F, quote = F )

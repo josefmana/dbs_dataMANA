@@ -17,3 +17,5 @@ _data/motor_long_df.csv,../weighDEP/_raw/motor_sum_scores.csv
 _data/psych_long_df.csv,../coGBA/_raw/psych_longit.csv
 _data/motor_long_df.csv,../coGBA/_raw/motor_longit.csv
 _data/preop_lvlII.csv,../coGBA/_raw/psych_preop.csv
+_data/motor_long_df.csv,../loutions-Neuripides/_Data/sum_scores.csv
+_data/resp_data.rds,./loutions-Neuripides/_Data/item_scores.rds
