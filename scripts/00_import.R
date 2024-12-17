@@ -62,7 +62,7 @@ fillin <-
 
 # DATA READ ----
 
-d0 <- read.csv( here("_raw","data","ITEMPO-ManaExportNeuropsych_DATA_2024-05-31_2055.csv"), sep = "," ) # outcome data
+d0 <- read.csv( here("_raw","data","ITEMPO-ManaExportNeuropsych_DATA_2024-12-17_1821.csv"), sep = "," ) # outcome data
 its <- read.csv( here("helpers","mds_updrs_iii_redcap_names.csv"), sep = "," ) # MDS UPDRS-III REDCap names
 scl <- read.csv( here("helpers","test_scoring.csv"), sep = ";" ) # scales to be imported
 bat <- read.csv( here("helpers","neurpsy_bat.csv"), sep = "," ) # pre-surgery neuropsychological battery

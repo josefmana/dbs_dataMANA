@@ -13,7 +13,7 @@ sapply( c("tabs","figs") , function(i) if( !dir.exists(i) ) dir.create(i) )
 theme_set( theme_minimal(base_size = 10) )
 
 # read the original data
-d0 <- read.csv( here("_raw","data","ITEMPO-ManaExportNeuropsych_DATA_2024-02-18_1157.csv"), sep = "," )
+d0 <- read.csv( here("_raw","data","ITEMPO-ManaExportNeuropsych_DATA_2024-12-17_1821.csv"), sep = "," )
 scl <- read.csv( here("helpers","test_scoring.csv"), sep = ";" ) # scales to be described
 
 # drop row with IAPI for now until we pre-process it

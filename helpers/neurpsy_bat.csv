@@ -54,3 +54,4 @@ clox_i,CLOX-I,Visuospatial Function,points,integer,0,15
 clox_ii,CLOX-II,Visuospatial Function,points,integer,0,15
 gp_r,GPT (right hand),Visuospatial Function,seconds,numeric,0,Inf
 gp_l,GPT (left hand),Visuospatial Function,seconds,numeric,0,Inf
+gds_15,GDS-15,NA,points,integer,0,15
